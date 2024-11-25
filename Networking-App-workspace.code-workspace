@@ -1,0 +1,25 @@
+{
+	"folders": [
+		{
+			"path": "GitHub/Lulu-s-Best-Cat-Toy"
+		},
+		{
+			"name": "test",
+			"path": "../../../../Documents/PlatformIO/Projects/test"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"*.tpp": "cpp"
+		},
+		"terminal.integrated.env.osx": {
+			"PATH": "${env:PATH}:/usr/local/bin"
+		},
+		"terminal.integrated.env.linux": {
+			"PATH": "${env:PATH}:/usr/local/bin"
+		},
+		"terminal.integrated.env.windows": {
+			"PATH": "${env:PATH};C:\\Program Files\\PlatformIO\\Scripts"
+		}
+	}
+}
