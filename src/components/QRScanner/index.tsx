@@ -3,7 +3,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Html5QrcodeScanner } from "html5-qrcode";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Camera, X } from "lucide-react";
+import { ContactFormData, ScrapedContact } from "@/types/contact";
+import ContactDisplay from "@/components/ContactDisplay";
 
 interface ScannerProps {
   onSuccess: (decodedText: string) => void;
@@ -14,14 +17,9 @@ const Scanner: React.FC<ScannerProps> = ({ onSuccess, onError }) => {
   const scannerRef = useRef<any>(null);
 
   useEffect(() => {
-    // Initialize scanner
     scannerRef.current = new Html5QrcodeScanner(
       "qr-reader",
-      {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1,
-      },
+      { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1 },
       false
     );
 
@@ -35,7 +33,6 @@ const Scanner: React.FC<ScannerProps> = ({ onSuccess, onError }) => {
       }
     );
 
-    // Cleanup scanner
     return () => {
       scannerRef.current?.clear().catch(console.error);
       scannerRef.current = null;
@@ -49,12 +46,14 @@ const Scanner: React.FC<ScannerProps> = ({ onSuccess, onError }) => {
 
 const QRScanner: React.FC = () => {
   const [scanning, setScanning] = useState(false);
-  const [scannedData, setScannedData] = useState<string | null>(null);
+  const [scannedData, setScannedData] = useState<ScrapedContact | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [blinqUrl, setBlinqUrl] = useState<string>("");
 
   const handleScanSuccess = (decodedText: string) => {
     setScanning(false);
-    setScannedData(decodedText);
+    setScannedData(null); // Clear previous scanned data
+    console.log("Scanned QR Code:", decodedText);
   };
 
   const handleScanError = (errorMessage: string) => {
@@ -68,22 +67,25 @@ const QRScanner: React.FC = () => {
     setScannedData(null);
   };
 
-  // Function to call the Puppeteer API
   const testBlinqScraping = async () => {
-    const cardUrl = "https://blinq.me/YrPFyZHnBAMMAXe9JNhz?bs=db"; // Example URL
+    if (!blinqUrl.trim()) {
+      setError("Please enter a Blinq URL.");
+      return;
+    }
+
     try {
-      const response = await fetch("/api/scrape/puppeteer", {
+      const response = await fetch("/api/scrape/blinq", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: cardUrl }),
+        body: JSON.stringify({ url: blinqUrl }),
       });
 
       const result = await response.json();
+
       if (result.success) {
-        console.log("Scraped Data:", result.data);
-        setScannedData(JSON.stringify(result.data, null, 2));
+        setScannedData(result.contact);
       } else {
-        throw new Error(result.error || "Failed to scrape data");
+        throw new Error(result.error || "Failed to scrape data.");
       }
     } catch (error) {
       console.error("Error scraping Blinq card:", error);
@@ -93,23 +95,34 @@ const QRScanner: React.FC = () => {
 
   return (
     <div className="w-full max-w-2xl p-6 bg-white rounded-lg shadow-md">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold">Scan QR Code</h2>
-      </div>
+      <h2 className="text-2xl font-bold mb-6">Contact Manager</h2>
+
       <div className="space-y-4">
         {scanning ? (
           <Scanner onSuccess={handleScanSuccess} onError={handleScanError} />
         ) : (
-          <>
-            <Button onClick={startScanning} className="w-full">
-              <Camera className="mr-2 h-4 w-4" />
-              Start Scanning
-            </Button>
-            <Button onClick={testBlinqScraping} className="w-full mt-4">
-              Test Puppeteer Scraping
-            </Button>
-          </>
+          <Button onClick={startScanning} className="w-full">
+            <Camera className="mr-2 h-4 w-4" />
+            Start Scanning
+          </Button>
         )}
+
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold">Import Digital Business Card</h3>
+          <div className="flex gap-2 mt-4">
+            <Input
+              type="text"
+              placeholder="Paste digital card URL..."
+              value={blinqUrl}
+              onChange={(e) => setBlinqUrl(e.target.value)}
+              className="flex-grow"
+            />
+            <Button onClick={testBlinqScraping}>
+              <Camera className="mr-2 h-4 w-4" />
+              Import
+            </Button>
+          </div>
+        </div>
 
         {error && (
           <div className="bg-red-50 text-red-500 p-4 rounded-md flex items-center gap-2">
@@ -119,9 +132,26 @@ const QRScanner: React.FC = () => {
         )}
 
         {scannedData && (
-          <pre className="border rounded-md p-4 bg-gray-50 text-sm">
-            {scannedData}
-          </pre>
+          <div className="mt-6">
+            <ContactDisplay
+              initialData={{
+                name: scannedData.name || "",
+                jobTitle: scannedData.jobTitle || "",
+                company: scannedData.company || "",
+                email: scannedData.email || "",
+                phoneNumbers: {
+                  cell: scannedData.phoneNumbers.cell || "",
+                  work: scannedData.phoneNumbers.work || "",
+                },
+                socialProfiles: {
+                  linkedin: scannedData.socialProfiles.linkedin || "",
+                  instagram: scannedData.socialProfiles.instagram || "",
+                },
+              }}
+              onSave={(data) => console.log("Saved contact:", data)}
+              onCancel={() => setScannedData(null)}
+            />
+          </div>
         )}
       </div>
     </div>

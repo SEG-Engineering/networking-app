@@ -2,76 +2,70 @@ import puppeteer from "puppeteer";
 
 export async function scrapeBlinqCard(url: string) {
   const browser = await puppeteer.launch({
-    headless: true, // Change to `false` if you want to see the browser while debugging
-    args: ["--no-sandbox", "--disable-setuid-sandbox"], // Puppeteer best practices
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
   const page = await browser.newPage();
 
   try {
-    await page.goto(url, { waitUntil: "networkidle2" });
+    await page.goto(url, { waitUntil: "networkidle0" }); // Changed to networkidle0 for better loading
+    
+    // Wait for the card content to load
+    await page.waitForSelector('#blinq-card', { timeout: 5000 });
 
-    // Extracting data using precise selectors
-    const name = await page.$eval(
-      "#blinq-card > div.user-details > div.user-identity > div",
-      (el) => el.textContent?.trim() || ""
-    );
+    // Extract data with error handling for each field
+    const extractField = async (selector: string, property: 'textContent' | 'href' = 'textContent') => {
+      try {
+        const element = await page.$(selector);
+        if (!element) return null;
+        
+        if (property === 'href') {
+          return await element.evaluate(el => el.getAttribute('href'));
+        }
+        return await element.evaluate(el => el.textContent?.trim());
+      } catch {
+        return null;
+      }
+    };
 
-    const jobTitle = await page.$eval(
-      "#blinq-card > div.user-details > div.user-job-title",
-      (el) => el.textContent?.trim() || ""
-    );
+    // Selectors object for easier maintenance
+    const selectors = {
+      name: "#blinq-card .user-identity",
+      jobTitle: "#blinq-card .user-job-title",
+      company: "#blinq-card .user-company",
+      email: "#blinq-card .links-and-notes a[href^='mailto:'] .detail-data-value",
+      phoneCell: "#blinq-card .links-and-notes a[href^='tel:']:nth-of-type(1) .detail-data-value",
+      phoneWork: "#blinq-card .links-and-notes a[href^='tel:']:nth-of-type(2) .detail-data-value",
+      linkedin: "#blinq-card .links-and-notes a[href*='linkedin.com']",
+      instagram: "#blinq-card .links-and-notes a[href*='instagram.com']",
+    };
 
-    const company = await page.$eval(
-      "#blinq-card > div.user-details > div.user-company",
-      (el) => el.textContent?.trim() || ""
-    );
-
-    const email = await page.$eval(
-      "#blinq-card > div.links-and-notes > ul > li:nth-child(1) > a > div.detail-data > div",
-      (el) => el.textContent?.trim() || ""
-    );
-
-    const phoneNumberWorkCell = await page.$eval(
-      "#blinq-card > div.links-and-notes > ul > li:nth-child(2) > a > div.detail-data > div.detail-data-value span",
-      (el) => el.textContent?.trim() || ""
-    );
-
-    const phoneNumberWork = await page.$eval(
-      "#blinq-card > div.links-and-notes > ul > li:nth-child(3) > a > div.detail-data > div.detail-data-value span",
-      (el) => el.textContent?.trim() || ""
-    );
-
-    const linkedinUrl = await page.$eval(
-      "#blinq-card > div.links-and-notes > ul > li:nth-child(5) > a",
-      (el) => el.getAttribute("href") || ""
-    );
-
-    const instagramUrl = await page.$eval(
-      "#blinq-card > div.links-and-notes > ul > li:nth-child(6) > a",
-      (el) => el.getAttribute("href") || ""
-    );
-
-    // Consolidate the data into an object
-    const scrapedData = {
-      name,
-      jobTitle,
-      company,
-      email,
+    // Extract all contact information
+    const contactInfo = {
+      name: await extractField(selectors.name),
+      jobTitle: await extractField(selectors.jobTitle),
+      company: await extractField(selectors.company),
+      email: await extractField(selectors.email),
       phoneNumbers: {
-        workCell: phoneNumberWorkCell,
-        work: phoneNumberWork,
+        cell: await extractField(selectors.phoneCell),
+        work: await extractField(selectors.phoneWork),
       },
-      socialLinks: {
-        linkedin: linkedinUrl,
-        instagram: instagramUrl,
+      socialProfiles: {
+        linkedin: await extractField(selectors.linkedin, 'href'),
+        instagram: await extractField(selectors.instagram, 'href'),
       },
     };
 
-    console.log("Scraped Data:", scrapedData);
-    return scrapedData;
+    // Take a screenshot for debugging (optional)
+    await page.screenshot({ path: 'debug-screenshot.png' });
+
+    // Log the extracted data for debugging
+    console.log('Extracted Data:', JSON.stringify(contactInfo, null, 2));
+
+    return contactInfo;
   } catch (error) {
     console.error("Error scraping Blinq card:", error);
-    throw new Error("Failed to scrape Blinq card");
+    throw error;
   } finally {
     await browser.close();
   }
