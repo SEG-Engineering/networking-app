@@ -1,0 +1,83 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Contact {
+  id        String    @id @default(uuid())
+  name      String
+  jobTitle  String?
+  company   String?
+  email     String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  phoneNumbers     PhoneNumber[]
+  socialProfiles   SocialProfile[]
+  relationships    Relationship[]
+  tracking         Tracking?
+
+  @@map("contacts")
+}
+
+model PhoneNumber {
+  id        String   @id @default(uuid())
+  type      String   // 'cell' or 'work'
+  number    String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("phone_numbers")
+}
+
+model SocialProfile {
+  id        String   @id @default(uuid())
+  platform  String   // 'linkedin' or 'instagram'
+  url       String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("social_profiles")
+}
+
+model Relationship {
+  id              String   @id @default(uuid())
+  type            String
+  contactFrequency String?
+  purpose         String?
+  contact         Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("relationships")
+}
+
+model Tracking {
+  id                    String    @id @default(uuid())
+  dateOfFirstMeeting    DateTime?
+  locationOfFirstMeeting String?
+  initialFollowUpMethod  String?
+  followUpPurpose       String?
+  contact              Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId            String    @unique
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@map("tracking")
+}
