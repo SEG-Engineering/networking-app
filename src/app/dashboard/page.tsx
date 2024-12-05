@@ -1,6 +1,8 @@
 // src/app/dashboard/page.tsx
 import { FC } from 'react'
 import ContactDisplay from '@/components/ContactDisplay'   // Note the curly braces if it's a named export
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
+
 
 const Dashboard: FC = () => {
     const initialData = {
@@ -37,4 +39,10 @@ const Dashboard: FC = () => {
     )
 }
 
-export default Dashboard
+export default function DashboardPage() {
+    return (
+      <ProtectedRoute>
+        <div>Dashboard Content</div>
+      </ProtectedRoute>
+    );
+  }
