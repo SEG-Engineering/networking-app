@@ -9,6 +9,7 @@ import { Edit2, Save, X } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { z } from "zod";
+import { FC } from 'react'
 
 // Form Validation Schema
 const contactFormSchema = z.object({
@@ -88,10 +89,23 @@ export interface ExtendedFields {
   initialFollowUpMethod: string;
 }
 
-interface ContactDisplayProps {
-  initialData: ContactFormData;
-  onSave: (data: ContactFormData & ExtendedFields) => void;
-  onCancel: () => void;
+export interface ContactDisplayProps {
+  initialData: {
+    name: string;
+    jobTitle: string;
+    company: string;
+    email: string;
+    phoneNumbers: {
+        cell: string;
+        work: string;
+    };
+    socialProfiles: {
+        linkedin: string;
+        instagram: string;
+    };
+};
+onSave: (data: any) => void;
+onCancel: () => void;
 }
 
 const ContactDisplay: React.FC<ContactDisplayProps> = ({
@@ -153,7 +167,7 @@ const ContactDisplay: React.FC<ContactDisplayProps> = ({
 
   const handleExtendedChange = (field: keyof ExtendedFields, value: string | Date | null) => {
     setExtendedFields((prev) => ({ ...prev, [field]: value }));
-  };
+};
 
   const handleSave = () => {
     if (validateForm()) {
@@ -322,14 +336,14 @@ const ContactDisplay: React.FC<ContactDisplayProps> = ({
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-600">Date of First Meeting</label>
                 <div className="relative">
-                  <DatePicker
+                <DatePicker
                     selected={extendedFields.dateOfFirstMeeting}
-                    onChange={(date) => handleExtendedChange("dateOfFirstMeeting", date)}
+                    onChange={(date: Date | null) => handleExtendedChange("dateOfFirstMeeting", date)}
                     className="w-full h-10 px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholderText="Select Date"
                     dateFormat="MMM d, yyyy"
                     isClearable
-                  />
+                />
                 </div>
               </div>
 

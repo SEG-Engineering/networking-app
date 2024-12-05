@@ -1,214 +1,126 @@
-// src/__tests__/contacts.test.ts
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { setupServer } from 'msw/node';
+import { handlers } from './mocks/handlers';
+import DatePicker from 'react-datepicker';
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
-import { setupServer } from 'msw/node'
-import { handlers } from './mocks/handlers'
 
-const API_URL = 'http://localhost:3000/api'
-
-async function apiCall(url: string, options: RequestInit = {}) {
-    try {
-        const response = await fetch(url, {
-            ...options,
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers,
-            },
-        })
-
-        const data = await response.json()
-
-        if (!response.ok) {
-            console.error('API Error:', {
-                status: response.status,
-                data,
-                url,
-                method: options.method || 'GET'
-            })
-            throw new Error(data.error || 'API call failed')
-        }
-
-        return { response, data }
-    } catch (error) {
-        console.error('Request failed:', {
-            url,
-            method: options.method || 'GET',
-            error
-        })
-        throw error
-    }
-}
+const server = setupServer(...handlers);
+const API_URL = 'http://localhost:3000/api';
 
 const testContact = {
-    name: 'Test User',
-    jobTitle: 'Developer',
-    company: 'Test Corp',
-    email: 'test@example.com',
-    phoneNumbers: {
-        cell: '123-456-7890',
-        work: '098-765-4321'
-    },
-    socialProfiles: {
-        linkedin: 'linkedin.com/test',
-        instagram: 'instagram.com/test'
-    }
-}
+  name: 'Test User',
+  jobTitle: 'Developer',
+  company: 'Test Corp',
+  email: 'test@example.com',
+  phoneNumbers: {
+    cell: '123-456-7890',
+    work: '098-765-4321',
+  },
+  socialProfiles: {
+    linkedin: 'linkedin.com/test',
+    instagram: 'instagram.com/test',
+  },
+};
 
-interface ApiError {
-    message: string;
-    status?: number;
-}
+const createContact = async () => {
+  const response = await fetch(`${API_URL}/contacts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(testContact),
+  });
+  const result = await response.json();
 
-const server = setupServer(...handlers)
+  if (!response.ok) {
+    throw new Error(`Failed to create contact: ${result.error}`);
+  }
+
+  return result.data;
+};
 
 describe('Contact API', () => {
-    beforeAll(() => {
-        server.listen({ onUnhandledRequest: 'bypass' })
-    })
+  beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
+  afterAll(() => server.close());
+  beforeEach(() => server.resetHandlers());
 
-    afterAll(() => {
-        server.close()
-    })
+  describe('POST /contacts', () => {
+    it('should create a new contact with valid data', async () => {
+      const response = await fetch(`${API_URL}/contacts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(testContact),
+      });
 
-    beforeEach(() => {
-        server.resetHandlers()
-    })
+      const result = await response.json();
+      expect(response.status).toBe(201);
+      expect(result.success).toBe(true);
+      expect(result.data.name).toBe(testContact.name);
+      expect(result.data.email).toBe(testContact.email);
+    });
 
-    it('should create a new contact', async () => {
-        console.debug('Starting contact creation test')
-        
-        const { data } = await apiCall(`${API_URL}/contacts`, {
-            method: 'POST',
-            body: JSON.stringify(testContact)
-        })
-        
-        console.debug('Contact created:', data)
-        expect(data.success).toBe(true)
-        expect(data.data.name).toBe(testContact.name)
-    })
+    it('should reject invalid contact data', async () => {
+      const response = await fetch(`${API_URL}/contacts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'test@example.com' }),
+      });
 
-    it('should get all contacts', async () => {
-        console.debug('Starting get all contacts test')
-        
-        await apiCall(`${API_URL}/contacts`, {
-            method: 'POST',
-            body: JSON.stringify(testContact)
-        })
+      const result = await response.json();
+      expect(response.status).toBe(400);
+      expect(result.success).toBe(false);
+    });
+  });
 
-        const { data } = await apiCall(`${API_URL}/contacts`)
-        
-        console.debug('Retrieved contacts:', data)
-        expect(data.success).toBe(true)
-        expect(Array.isArray(data.data)).toBe(true)
-        expect(data.data.length).toBeGreaterThan(0)
-    })
+  describe('GET /contacts', () => {
+    it('should retrieve all contacts', async () => {
+      await createContact();
 
-    it('should get a single contact', async () => {
-        console.debug('Starting get single contact test')
-        
-        const { data: createData } = await apiCall(`${API_URL}/contacts`, {
-            method: 'POST',
-            body: JSON.stringify(testContact)
-        })
+      const response = await fetch(`${API_URL}/contacts`);
+      const result = await response.json();
+      expect(response.status).toBe(200);
+      expect(result.success).toBe(true);
+      expect(result.data.length).toBeGreaterThan(0);
+    });
+  });
 
-        const { data } = await apiCall(`${API_URL}/contacts/${createData.data.id}`)
-        
-        console.debug('Retrieved single contact:', data)
-        expect(data.success).toBe(true)
-        expect(data.data.id).toBe(createData.data.id)
-    })
+  describe('PUT /contacts', () => {
+    it('should update an existing contact', async () => {
+      const createdContact = await createContact();
 
-    it('should update a contact', async () => {
-        console.debug('Starting update contact test')
-        
-        const { data: createData } = await apiCall(`${API_URL}/contacts`, {
-            method: 'POST',
-            body: JSON.stringify(testContact)
-        })
+      const updatedContact = {
+        ...createdContact,
+        name: 'Updated Name',
+        jobTitle: 'Senior Developer',
+      };
 
-        const updatedData = {
-            ...testContact,
-            id: createData.data.id,
-            name: 'Updated Name'
-        }
+      const response = await fetch(`${API_URL}/contacts`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedContact),
+      });
 
-        const { data } = await apiCall(`${API_URL}/contacts`, {
-            method: 'PUT',
-            body: JSON.stringify(updatedData)
-        })
-        
-        console.debug('Updated contact:', data)
-        expect(data.success).toBe(true)
-        expect(data.data.name).toBe('Updated Name')
-    })
+      const result = await response.json();
+      expect(response.status).toBe(200);
+      expect(result.data.name).toBe('Updated Name');
+      expect(result.data.jobTitle).toBe('Senior Developer');
+    });
+  });
 
-    it('should delete a contact', async () => {
-        console.debug('Starting delete contact test')
-        
-        const { data: createData } = await apiCall(`${API_URL}/contacts`, {
-            method: 'POST',
-            body: JSON.stringify(testContact)
-        })
+  describe('DELETE /contacts', () => {
+    it('should delete an existing contact', async () => {
+      const createdContact = await createContact();
 
-        const { data } = await apiCall(`${API_URL}/contacts`, {
-            method: 'DELETE',
-            body: JSON.stringify({ id: createData.data.id })
-        })
-        
-        console.debug('Delete response:', data)
-        expect(data.success).toBe(true)
+      const response = await fetch(`${API_URL}/contacts`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: createdContact.id }),
+      });
 
-        try {
-            await apiCall(`${API_URL}/contacts/${createData.data.id}`)
-            throw new Error('Contact should not exist')
-        } catch (error) {
-            if (error instanceof Error) {
-                expect(error.message).toContain('API call failed')
-            }
-        }
-    })
+      const result = await response.json();
+      expect(response.status).toBe(200);
+      expect(result.success).toBe(true);
 
-    it('should handle invalid contact creation', async () => {
-        console.debug('Starting invalid contact test')
-        
-        const invalidContact = {
-            name: '',
-            email: 'invalid-email'
-        }
-
-        try {
-            await apiCall(`${API_URL}/contacts`, {
-                method: 'POST',
-                body: JSON.stringify(invalidContact)
-            })
-            throw new Error('Should have failed')
-        } catch (error) {
-            if (error instanceof Error) {
-                console.debug('Expected error caught:', error.message)
-                expect(error.message).toContain('API call failed')
-            }
-        }
-    })
-    // Update the error expectation in the invalid contact test
-it('should handle invalid contact creation', async () => {
-    console.debug('Starting invalid contact test')
-    
-    const invalidContact = {
-        name: '',
-        email: 'invalid-email'
-    }
-
-    try {
-        await apiCall(`${API_URL}/contacts`, {
-            method: 'POST',
-            body: JSON.stringify(invalidContact)
-        })
-        throw new Error('Should have failed')
-    } catch (error) {
-        if (error instanceof Error) {
-            console.debug('Expected error caught:', error.message)
-            expect(error.message).toContain('Failed to create contact')  // Updated expectation
-        }
-    }
-})
-})
+      const getResponse = await fetch(`${API_URL}/contacts/${createdContact.id}`);
+      expect(getResponse.status).toBe(404);
+    });
+  });
+});

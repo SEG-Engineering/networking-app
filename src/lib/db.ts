@@ -1,13 +1,12 @@
 import { Pool } from 'pg'
 import { PrismaClient } from '@prisma/client'
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
+const prisma = new PrismaClient({
+  log: ['query', 'info', 'warn', 'error'], // Add this for debugging
+})
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient()
+export { prisma }
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
 const pool = new Pool({
   user: 'admin_db',
