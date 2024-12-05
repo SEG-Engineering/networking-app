@@ -1,14 +1,26 @@
-// src/providers/AuthProvider.tsx
+"use client"; // Add this at the top of the file
 
-import { createContext, useContext, ReactNode } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { createContext, useContext, ReactNode } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 const AuthContext = createContext<ReturnType<typeof useAuth> | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  return (
-    <AuthContext.Provider value={useAuth()}>
-      {children}
-    </AuthContext.Provider>
-  );
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export function AuthProvider({ children }: AuthProviderProps) {
+  const auth = useAuth();
+
+  return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
+}
+
+export function useAuthContext() {
+  const context = useContext(AuthContext);
+
+  if (!context) {
+    throw new Error("useAuthContext must be used within an AuthProvider");
+  }
+
+  return context;
 }

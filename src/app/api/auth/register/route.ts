@@ -1,5 +1,7 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+// src/app/api/auth/register/route.ts
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { createToken } from "@/lib/auth";
 import bcrypt from 'bcrypt';
 
 export async function POST(request: Request) {
@@ -7,8 +9,10 @@ export async function POST(request: Request) {
     const { email, password, name } = await request.json();
 
     // Check if user exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email }
+    const existingUser = await prisma.user.findUnique({  // Note: lowercase 'user'
+      where: {
+        email
+      }
     });
 
     if (existingUser) {
@@ -19,10 +23,10 @@ export async function POST(request: Request) {
     }
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     // Create user
-    const user = await prisma.user.create({
+    const user = await prisma.user.create({  // Note: lowercase 'user'
       data: {
         email,
         password: hashedPassword,
@@ -30,16 +34,24 @@ export async function POST(request: Request) {
       }
     });
 
+    // Create token
+    const token = createToken({
+      userId: user.id,
+      email: user.email
+    });
+
     return NextResponse.json({
       success: true,
       data: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name
+        },
+        token
       }
-    }, { status: 201 });
+    });
+
   } catch (error) {
     console.error('Registration error:', error);
     return NextResponse.json(

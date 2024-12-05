@@ -1,16 +1,9 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import * as jwt from 'jsonwebtoken';
+// src/middleware.ts
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { verifyAuth } from "@/lib/auth";
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-
-// Add paths that don't require authentication
-const publicPaths = [
-  '/api/auth/login',
-  '/api/auth/register',
-  '/login',
-  '/register'
-];
+const publicPaths = ['/api/auth/login', '/api/auth/register', '/login', '/register'];
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
@@ -20,29 +13,25 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = request.headers.get('authorization')?.split(' ')[1];
-
-  if (!token) {
-    return NextResponse.json(
-      { success: false, error: 'Authentication required' },
-      { status: 401 }
-    );
+  const authResult = await verifyAuth(request);
+  
+  if (!authResult.success) {
+    if (request.nextUrl.pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const requestHeaders = new Headers(request.headers);
-    requestHeaders.set('userId', (decoded as any).userId);
+  // Add user info to headers
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('userId', authResult.userId);
 
-    return NextResponse.next({
-      headers: requestHeaders,
-    });
-  } catch (error) {
-    return NextResponse.json(
-      { success: false, error: 'Invalid token' },
-      { status: 401 }
-    );
-  }
+  return NextResponse.next({
+    headers: requestHeaders,
+  });
 }
 
 export const config = {
