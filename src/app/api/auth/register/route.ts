@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createToken } from "@/lib/auth";
 import bcrypt from "bcrypt";
+import { validateEmail, validatePassword } from "@/lib/validation";
 
 export async function POST(request: Request) {
   console.log("Registration endpoint called");
@@ -9,6 +10,27 @@ export async function POST(request: Request) {
   try {
     const { email, password, name } = await request.json();
     console.log("Received data:", { email, password, name });
+
+    // Validate email
+    if (!validateEmail(email)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid email format" },
+        { status: 400 }
+      );
+    }
+
+    // Validate password
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid password",
+          details: passwordValidation.errors,
+        },
+        { status: 400 }
+      );
+    }
 
     // Debugging the query
     console.log("Checking if user exists with email:", email);
@@ -47,9 +69,6 @@ export async function POST(request: Request) {
     });
 
     console.log("Token created:", token);
-    console.log("Prisma connection info:", prisma);
-    console.log("Prisma query user table...");
-
 
     return NextResponse.json({
       success: true,
