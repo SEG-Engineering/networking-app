@@ -1,6 +1,4 @@
-// src/store/auth.ts
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 
 type User = {
   id: string;
@@ -16,19 +14,20 @@ interface AuthState {
   clearSession: () => void;
 }
 
-export const useAuth = create<AuthState>()(
-  persist(
-    (set) => ({
-      user: null,
-      token: null,
-      isAuthenticated: false,
-      setSession: (user, token) => 
-        set({ user, token, isAuthenticated: true }),
-      clearSession: () => 
-        set({ user: null, token: null, isAuthenticated: false }),
-    }),
-    {
-      name: 'auth-storage', // name of the item in storage
-    }
-  )
-);
+export const useAuth = create<AuthState>((set) => ({
+  user: JSON.parse(localStorage.getItem('auth-user') || 'null'),
+  token: localStorage.getItem('auth-token'),
+  isAuthenticated: !!localStorage.getItem('auth-token'),
+
+  setSession: (user, token) => {
+    localStorage.setItem('auth-user', JSON.stringify(user));
+    localStorage.setItem('auth-token', token);
+    set({ user, token, isAuthenticated: true });
+  },
+
+  clearSession: () => {
+    localStorage.removeItem('auth-user');
+    localStorage.removeItem('auth-token');
+    set({ user: null, token: null, isAuthenticated: false });
+  },
+}));

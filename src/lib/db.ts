@@ -1,16 +1,17 @@
-// src/lib/db.ts
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from "@prisma/client";
+
+console.log("Database URL:", process.env.DATABASE_URL);
 
 declare global {
-  var prisma: PrismaClient | undefined
+  var prisma: PrismaClient | undefined;
 }
 
-const prisma = global.prisma || new PrismaClient({
-  log: ['query', 'info', 'warn', 'error'],
-})
+export const prisma =
+  global.prisma ||
+  new PrismaClient({
+    log: ["query", "info", "warn", "error"],
+  });
 
-if (process.env.NODE_ENV !== 'production') {
-  global.prisma = prisma
+if (process.env.NODE_ENV !== "production") {
+  global.prisma = prisma;
 }
-
-export { prisma }

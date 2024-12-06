@@ -3,7 +3,13 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 
-const publicPaths = ['/api/auth/login', '/api/auth/register', '/login', '/register'];
+const publicPaths = [
+  '/api/auth/login',
+  '/api/auth/register',
+  '/api/auth/test-token', // Add this line
+  '/login',
+  '/register',
+];
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
@@ -14,7 +20,7 @@ export async function middleware(request: NextRequest) {
   }
 
   const authResult = await verifyAuth(request);
-  
+
   if (!authResult.success) {
     if (request.nextUrl.pathname.startsWith('/api/')) {
       return NextResponse.json(
@@ -25,9 +31,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // Add user info to headers
+  // Add user info to headers only if authResult.success is true
   const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('userId', authResult.userId);
+
+  if (authResult.userId) {
+    requestHeaders.set('userId', authResult.userId);
+  }
+
+  if (authResult.email) {
+    requestHeaders.set('email', authResult.email);
+  }
 
   return NextResponse.next({
     headers: requestHeaders,
